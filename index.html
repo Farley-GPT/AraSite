@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Where in the World is Ara American? - The Spark Ignites</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Roboto+Condensed:wght@400;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --amber-500: #f59e0b;
+            --amber-400: #fbbf24;
+            --amber-600: #d97706;
+            --cyber-green: #39ff14; /* Neon Green */
+            --cyber-pink: #ff00ff;  /* Neon Pink */
+            --cyber-blue: #00ffff;  /* Neon Blue */
+            --gray-900: #111827;
+            --gray-800: #1f2937;
+            --gray-700: #374151;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --red-400: #f87171;
+            --black-pearl: #030508; /* Even deeper base */
+            --dark-knight: #0a0a0a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--black-pearl); 
+            color: var(--gray-200);
+            overflow-x: hidden;
+            cursor: none; 
+        }
+
+        #cyberpunk-rain-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: -1; /* Behind parallax-bg overlays but visible */
+            opacity: 0.35; /* Subtle rain */
+        }
+
+        /* Custom Cursor */
+        .custom-cursor {
+            position: fixed; left: 0; top: 0; pointer-events: none; z-index: 9999;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .cursor-dot {
+            width: 6px; height: 6px; background-color: var(--cyber-green); /* Cyber green cursor */
+            border-radius: 50%; position: absolute; transform: translate(-50%, -50%);
+            transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: 0 0 5px var(--cyber-green), 0 0 10px var(--cyber-green);
+        }
+        .cursor-ring {
+            width: 28px; height: 28px; border: 1px solid var(--cyber-pink); /* Cyber pink ring */
+            border-radius: 50%; position: absolute; transform: translate(-50%, -50%);
+            opacity: 0.6; transition: transform 0.25s cubic-bezier(0.165, 0.84, 0.44, 1), opacity 0.25s ease, border-color 0.25s ease;
+            box-shadow: 0 0 8px var(--cyber-pink);
+        }
+        body.cursor-visible .custom-cursor { opacity: 1; }
+        a:hover ~ .custom-cursor .cursor-ring, button:hover ~ .custom-cursor .cursor-ring, .comic-panel:hover ~ .custom-cursor .cursor-ring {
+            transform: translate(-50%, -50%) scale(1.7); opacity: 1; border-color: var(--cyber-blue);
+            box-shadow: 0 0 12px var(--cyber-blue);
+        }
+        a:hover ~ .custom-cursor .cursor-dot, button:hover ~ .custom-cursor .cursor-dot, .comic-panel:hover ~ .custom-cursor .cursor-dot {
+            transform: translate(-50%, -50%) scale(1.6);
+            box-shadow: 0 0 8px var(--cyber-green), 0 0 15px var(--cyber-green);
+        }
+
+        /* Preloader */
+        .preloader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--dark-knight); z-index: 10000;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            transition: opacity 0.9s cubic-bezier(0.77, 0, 0.175, 1), visibility 0.9s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .preloader.loaded { opacity: 0; visibility: hidden; }
+        .preloader-logo {
+            font-family: 'Orbitron', sans-serif; font-size: clamp(2rem, 5vw, 2.8rem);
+            color: var(--amber-500); letter-spacing: 0.18em; margin-bottom: 1.8rem;
+            opacity: 0; animation: fadeInLogo 1.3s cubic-bezier(0.215, 0.61, 0.355, 1) 0.5s forwards;
+            text-shadow: 0 0 12px var(--amber-600), 0 0 5px var(--cyber-green);
+        }
+        @keyframes fadeInLogo { 0% { opacity:0; transform: scale(0.8) translateY(10px); } 100% { opacity: 1; transform: scale(1.05) translateY(0); } }
+        .loading-bar { width: 240px; height: 5px; background-color: var(--gray-700); border-radius: 5px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.5); }
+        .loading-bar-progress {
+            width: 0%; height: 100%; background: linear-gradient(90deg, var(--amber-500), var(--cyber-green)); border-radius: 5px;
+            animation: loadProgress 2.3s cubic-bezier(0.645, 0.045, 0.355, 1) 0.8s forwards;
+            box-shadow: 0 0 8px var(--cyber-green);
+        }
+        @keyframes loadProgress { to { width: 100%; } }
+
+        .parallax-section {
+            min-height: 100vh; position: relative; overflow: visible; /* Allow 3D transforms to peek */
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: clamp(1.5rem, 5vw, 3rem); box-sizing: border-box;
+            perspective: 1200px; /* Perspective for 3D effects within section */
+        }
+
+        .parallax-bg {
+            position: absolute; top: -20%; left: -5%; width: 110%; height: 140%; /* Slight overflow for parallax */
+            background-size: cover; background-position: center center; z-index: -3; /* Furthest back */
+            filter: brightness(0.7) contrast(1.05) saturate(0.9);
+            transform: translateZ(-200px) scale(1.2); /* Push back for 3D depth */
+        }
+        
+        @keyframes animatedGradientAdvanced {
+            0% { background-position: 0% 20%; filter: hue-rotate(0deg) saturate(1.2) brightness(0.9); }
+            25% { background-position: 70% 80%; }
+            50% { background-position: 100% 20%; filter: hue-rotate(20deg) saturate(1.3) brightness(1); }
+            75% { background-position: 30% 80%; }
+            100% { background-position: 0% 20%; filter: hue-rotate(0deg) saturate(1.2) brightness(0.9); }
+        }
+
+        .parallax-bg::after { 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(70deg, 
+                rgba(3, 5, 8, 0.92),      /* var(--black-pearl) like */
+                rgba(10, 15, 25, 0.94),   /* Darker variant */
+                rgba(20, 30, 45, 0.88),   
+                rgba(3, 5, 8, 0.96));
+            background-size: 380% 380%;
+            animation: animatedGradientAdvanced 28s infinite ease-in-out;
+            z-index: -1; /* Above rain, below bg image */
+        }
+        #section4 .parallax-bg::after {
+             background: linear-gradient(80deg, 
+                rgba(200, 200, 215, 0.8), 
+                rgba(220, 225, 235, 0.9), 
+                rgba(235, 240, 250, 0.85), 
+                rgba(200, 200, 215, 0.88));
+             background-size: 320% 320%;
+             animation: animatedGradientAdvanced 32s infinite ease-in-out reverse; 
+        }
+
+        .content-block {
+            background: rgba(18, 22, 30, 0.8); 
+            backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+            -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1); 
+            border-radius: 1.5rem; 
+            padding: clamp(2rem, 5vw, 3.5rem); 
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75), inset 0 0 0 2px rgba(var(--cyber-pink),0.15), 0 0 15px rgba(var(--cyber-blue),0.1); 
+            border: 1px solid rgba(var(--cyber-blue), 0.25); /* Cyber blue border */
+            opacity: 0; transform: translateY(40px) scale(0.95) rotateX(-5deg); 
+            transition: opacity 1s cubic-bezier(0.19, 1, 0.22, 1), transform 1s cubic-bezier(0.19, 1, 0.22, 1);
+            max-width: 900px; width: clamp(90%, 850px, 95%);
+            transform-style: preserve-3d; /* For 3D tilt children */
+        }
+        #section4 .content-block {
+            background: rgba(248, 249, 253, 0.8);
+            border-color: rgba(0,0,0,0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), inset 0 0 0 2px rgba(0,0,0,0.03);
+        }
+        .content-block.visible { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); }
+        
+        .parallax-image-container { position: relative; width: 100%; display: flex; justify-content: center; align-items: center; transform-style: preserve-3d; }
+        .parallax-image {
+            max-width: 100%; width: auto; max-height: 55vh; /* Slightly smaller for better framing */
+            object-fit: contain; border-radius: 1rem; /* Softer radius */
+            box-shadow: 0 20px 45px rgba(0,0,0,0.7); 
+            display: block;
+            transform: translateZ(50px); /* Bring image forward */
+        }
+
+        /* Section 1: Hero Enhancements */
+        .fixed-title-container {
+            position: sticky; top: 0; width: 100%; height: 100vh; z-index: 1; /* Above parallax bg, below other sections */
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 1rem; 
+        }
+        .hero-title-main {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2rem, 7.5vw, 6rem); /* Larger, more impactful */
+            color: #fff;
+            text-shadow: 0 0 15px var(--amber-400), 0 0 30px var(--amber-500), 0 0 50px rgba(245,158,11,0.8), 0 0 8px var(--cyber-green);
+            letter-spacing: 0.035em; line-height: 1.1; margin-bottom: 1.8rem;
+        }
+        .hero-title-main .word { display: inline-block; white-space: nowrap; margin-right: 0.25em; /* Space between words */ }
+        .hero-title-main .char { display: inline-block; opacity:0; transform: translateY(-40px) scale(0.3) rotateZ(-30deg) rotateY(20deg); }
+        .hero-subtitle { font-weight: 300; color: var(--gray-200); text-shadow: 0 1px 5px rgba(0,0,0,0.6); font-size: clamp(1rem, 2.5vw, 1.25rem); }
+
+        .news-flash-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 0;}
+        .news-flash {
+            position: absolute; font-family: 'Roboto Condensed', sans-serif;
+            font-size: clamp(0.65rem, 1.3vw, 0.85rem); color: rgba(var(--cyber-green),0.7); /* Cyber green text */
+            background-color: rgba(5,5,5,0.65); padding: 0.35rem 0.7rem; border-radius: 0.25rem;
+            opacity: 0; white-space: nowrap; animation: flashAnim 10s infinite ease-in-out;
+            border: 1px solid rgba(var(--cyber-green),0.2);
+            text-shadow: 0 0 3px rgba(var(--cyber-green),0.5);
+        }
+        @keyframes flashAnim {
+            0%, 100% { opacity: 0; transform: translateX(-130px) translateY(10px) scale(0.7) rotate(-8deg); }
+            12%, 32% { opacity: 0.8; transform: translateX(0px) translateY(0px) scale(1) rotate(0deg); }
+            38% { opacity: 0.8; transform: translateX(0px) translateY(0px) scale(1) rotate(0deg); filter: brightness(1.8) drop-shadow(0 0 5px var(--cyber-green)); }
+            50% { opacity: 0; transform: translateX(130px) translateY(-10px) scale(0.7) rotate(8deg); filter: brightness(1); }
+        }
+        .glitch-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            pointer-events: none; z-index: 2; animation: glitchEffect 10s infinite steps(2, end) 1.5s; 
+            opacity: 0;
+        }
+        .glitch-overlay::before, .glitch-overlay::after {
+            content: ''; display: block; position: absolute;
+            top:0; left:0; width:100%; height:100%;
+            background: inherit; opacity: 0.75; mix-blend-mode: difference; /* More intense glitch */
+        }
+        .glitch-overlay::before { animation: glitchTop 0.6s cubic-bezier(.25,.46,.45,.94) infinite alternate-reverse; clip-path: polygon(0 10%, 100% 10%, 100% 13%, 0 13%); }
+        .glitch-overlay::after { animation: glitchBottom 0.9s cubic-bezier(.25,.46,.45,.94) infinite alternate-reverse; clip-path: polygon(0 75%, 100% 75%, 100% 78%, 0 78%); }
+        @keyframes glitchEffect { 0%, 2.5% {opacity: 0.1;} 2.6%, 100% {opacity:0;} }
+        @keyframes glitchTop {0%{transform:translate(3px,1px)} 100%{transform:translate(-3px,-1px)}}
+        @keyframes glitchBottom {0%{transform:translate(-3px, -1px)} 100%{transform:translate(3px,1px)}}
+
+        /* Section 2: Dossier Snippets */
+        .dossier-snippet {
+            position: absolute; background-color: rgba(35,40,50,0.65);
+            border: 1px solid rgba(var(--cyber-blue),0.2); backdrop-filter: blur(10px) brightness(1.1);
+            padding: 0.7rem 1.3rem; border-radius: 0.35rem;
+            font-family: 'Roboto Condensed', sans-serif; font-size: clamp(0.7rem, 1.7vw, 0.8rem);
+            color: var(--gray-200); opacity: 0; transform: scale(0.8) rotate(-4deg) translateZ(20px);
+            transition: opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1), transform 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+            will-change: transform, opacity;
+        }
+        .dossier-snippet.visible { opacity: 1; transform: scale(1) rotate(0deg) translateZ(20px); }
+        .dossier-snippet strong { color: var(--cyber-pink); font-weight: 700; text-shadow: 0 0 3px var(--cyber-pink); }
+
+        /* Section 3: Character Network */
+        .character-grid-container { position: relative; width:100%; max-width:1200px; margin-top: 1.5rem; }
+        #connection-canvas {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            pointer-events: none; z-index: 0; opacity: 0; 
+            transition: opacity 1.2s ease-out;
+        }
+        #connection-canvas.visible { opacity: 0.6; } /* Slightly more visible lines */
+
+        .character-card {
+            background: rgba(25, 30, 40, 0.85); 
+            backdrop-filter: blur(18px) saturate(140%) brightness(1.05);
+            border-radius: 1.25rem; padding: 1.8rem; text-align: center;
+            border: 1px solid rgba(var(--cyber-blue), 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            opacity: 0; transform: translateY(40px) scale(0.95) rotateY(-10deg);
+            transition: opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1), transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.4s ease;
+            transition-delay: calc(0.13s * var(--card-index)); 
+            will-change: transform, box-shadow; /* Performance hint */
+        }
+        .character-card.visible { opacity: 1; transform: translateY(0) scale(1) rotateY(0deg); }
+        .character-card:hover {
+            transform: translateY(-20px) scale(1.07) rotateY(var(--mouse-angle-y, 0deg)) rotateX(var(--mouse-angle-x, 0deg));
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6), 0 0 60px rgba(var(--cyber-pink), 0.4), inset 0 0 0 2px var(--cyber-pink);
+        }
+        .character-card .character-image-wrapper { 
+            border-radius: 1rem; overflow: hidden; margin-bottom: 1.5rem;
+            border: 2px solid rgba(var(--cyber-pink),0.25);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+        }
+        .character-card img {
+            width: 100%; height: auto; display: block;
+            transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), filter 0.5s ease;
+        }
+        .character-card:hover img { transform: scale(1.22); filter: saturate(1.2) brightness(1.1); }
+        .character-card h3 {
+            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(1.25rem, 2.8vw, 1.6rem); 
+            color: var(--cyber-pink); margin-top: 0.75rem;
+            text-shadow: 0 0 10px rgba(var(--cyber-pink), 0.7);
+        }
+
+        /* Section 4: Surveillance Effect */
+        #section4 .parallax-bg { filter: brightness(0.85) contrast(1.1) saturate(0.7); transform: translateZ(-250px) scale(1.25); }
+        .surveillance-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            pointer-events: none; z-index: 1; opacity: 0; transition: opacity 0.5s ease;
+        }
+        .surveillance-overlay.active { opacity: 1; }
+        .surveillance-overlay::before { /* Scanlines */
+            content: ''; position: absolute; top:0; left:0; width:100%; height:100%;
+            background: repeating-linear-gradient(transparent, transparent 2px, rgba(20,0,0,0.1) 2.5px, rgba(20,0,0,0.1) 3.5px); /* Reddish scanlines */
+            animation: scanlines 20s linear infinite; opacity: 0.6;
+        }
+        @keyframes scanlines { to { background-position-y: 100vh; } }
+        .cam-text {
+            position: absolute; font-family: 'Orbitron', sans-serif;
+            color: rgba(255,30,30,0.8); text-shadow: 0 0 5px rgba(255,0,0,0.9);
+            font-size: clamp(0.75rem, 1.4vw, 0.85rem); background-color: rgba(0,0,0,0.35); padding: 0.25rem 0.5rem; border-radius: 3px;
+        }
+        .cam-rec { top: 1.8rem; left: 1.8rem; }
+        .cam-rec::before { content: 'REC ●'; animation: pulseRec 1.3s infinite; }
+        @keyframes pulseRec { 0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px red); } 50% { opacity: 0.3; filter: none; } }
+        .cam-timestamp { bottom: 1.8rem; right: 1.8rem; }
+
+        /* Section 5: Comic Panel Tease */
+        .comic-panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.8rem; margin-top: 2.8rem; }
+        .comic-panel {
+            aspect-ratio: 2/3; background-color: var(--gray-900); /* Darker panel bg */
+            border-radius: 1rem; border: 2px solid rgba(var(--cyber-blue),0.3);
+            display: flex; flex-direction: column; justify-content: flex-end; 
+            overflow: hidden; position: relative; cursor: pointer;
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            transform: translateZ(0); /* Prepare for 3D hover */
+        }
+        .comic-panel:hover { 
+            transform: scale(1.08) rotate(-1.5deg) translateZ(30px); 
+            box-shadow: 0 12px 35px rgba(0,0,0,0.45), 0 0 30px var(--cyber-blue), inset 0 0 0 2px var(--cyber-blue); 
+        }
+        .panel-blur-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background-size: cover; background-position: center;
+            filter: blur(12px) grayscale(0.7) brightness(0.75) contrast(1.1);
+            transition: filter 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .comic-panel:hover .panel-blur-overlay { filter: blur(2.5px) grayscale(0) brightness(1.05) contrast(1); }
+        .panel-text-teaser {
+            font-family: 'Roboto Condensed', sans-serif; color: #fff;
+            padding: 0.8rem 1.1rem; text-align: center; font-size: clamp(0.75rem, 1.7vw, 0.85rem);
+            z-index: 1; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.75) 60%, transparent 100%); 
+            width:100%; font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        }
+        
+        .section-title {
+            font-family: 'Orbitron', sans-serif; letter-spacing: 0.07em; /* Wider spacing */
+            color: #fff; text-shadow: 0 0 12px var(--amber-400), 0 0 25px var(--amber-500), 0 0 8px var(--cyber-green), 0 0 3px rgba(0,0,0,0.7);
+            font-size: clamp(2rem, 5.5vw, 3.8rem); 
+            margin-bottom: clamp(1.8rem, 4.5vw, 2.8rem); 
+        }
+        #section4 .section-title { color: var(--gray-900); text-shadow: 0 0 8px rgba(30,30,30,0.3); }
+
+        .section-title .word { display: inline-block; white-space: nowrap; margin-right: 0.3em; } /* Ensure word spacing */
+        .section-title .char { 
+            display: inline-block; opacity: 0; 
+            transform: translateY(40px) skewX(-30deg) scale(0.6) rotateY(15deg);
+            transition: opacity 0.6s cubic-bezier(0.19, 1, 0.22, 1), transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .section-title.letters-animated.visible .char { opacity: 1; transform: translateY(0) skewX(0deg) scale(1) rotateY(0deg); }
+
+        .email-form button {
+            background: linear-gradient(55deg, var(--cyber-pink), var(--amber-500), var(--cyber-green)); /* Cyberpunk gradient */
+            background-size: 200% 100%;
+            color: var(--dark-knight); font-weight: 700; 
+            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.4s cubic-bezier(0.19, 1, 0.22, 1), background-position 0.5s ease;
+            box-shadow: 0 6px 15px rgba(var(--cyber-pink), 0.3), 0 0 8px rgba(var(--cyber-green),0.2); border: none;
+            padding: 0.9rem 2rem; 
+            border-radius: 0.5rem; /* Standardized radius */
+        }
+        .email-form button:hover {
+            transform: translateY(-5px) scale(1.04);
+            box-shadow: 0 12px 25px rgba(var(--cyber-pink), 0.4), 0 0 15px rgba(var(--cyber-green),0.3);
+            background-position: 100% 0;
+        }
+        .social-link svg { width: 32px; height: 32px; fill: currentColor; transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1), filter 0.4s ease; }
+        .social-link:hover svg { transform: scale(1.3) rotate(8deg); filter: drop-shadow(0 0 10px var(--cyber-blue));}
+        
+        .animate-fade-in-up { opacity:0; animation: fadeInUp 1.2s cubic-bezier(0.19, 1, 0.22, 1) forwards; }
+        @keyframes fadeInUp { to { opacity:1; transform: translateY(0); } }
+        .opacity-0.animate-fade-in-up { transform: translateY(25px); } 
+
+    </style>
+</head>
+<body>
+    <canvas id="cyberpunk-rain-canvas"></canvas>
+    <div class="custom-cursor">
+        <div class="cursor-dot"></div>
+        <div class="cursor-ring"></div>
+    </div>
+
+    <div class="preloader">
+        <div class="preloader-logo">ARA</div>
+        <div class="loading-bar"><div class="loading-bar-progress"></div></div>
+    </div>
+
+    <!-- Section 1: The Spark -->
+    <section id="section1" class="parallax-section">
+        <div class="parallax-bg" style="background-image: url('images/Ara Airport 1.png');" data-parallax-speed="0.2"> <!-- Slower parallax for main bg -->
+            <div class="glitch-overlay" style="background-image: url('images/Ara Airport 1.png');"></div>
+        </div>
+        <div class="news-flash-container"></div> 
+        
+        <div class="fixed-title-container">
+            <div class="parallax-content text-center" data-parallax-speed="0.7"> <!-- Content scrolls a bit faster -->
+                <h1 class="hero-title-main"></h1>
+                <p class="hero-subtitle text-lg sm:text-xl md:text-2xl opacity-0 animate-fade-in-up" style="animation-delay: 1.3s;">
+                    Some truths ignite the world. Some activists vanish.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <div style="height: 25vh;"></div> 
+
+    <!-- Section 2: Echoes of Defiance -->
+    <section id="section2" class="parallax-section">
+        <div class="parallax-bg" style="background-image: url('https://placehold.co/1920x1080/030710/080d18?text=Encrypted+Data+Fragments');" data-parallax-speed="0.18"></div>
+        
+        <div class="content-block"> 
+            <h2 class="section-title text-center" data-parallax-speed="0.8">Echoes of Defiance</h2>
+            
+            <div class="w-full mb-10 md:mb-14 relative" data-tilt-effect>
+                <div class="parallax-image-container mb-4 md:mb-5" data-parallax-speed="0.6">
+                    <img src="images/Ara Scene 1-01.png" alt="Ara American in bath with phone, a critical message received" class="parallax-image" onerror="this.onerror=null;this.src='https://placehold.co/600x400/ff0000/ffffff?text=Bath+Scene+Missing';">
+                </div>
+                <div class="dossier-snippet" style="bottom: 6%; left: 4%; transform-origin: bottom left;">
+                    <strong>EXHIBIT A:</strong> Encrypted Comms Intercept
+                </div>
+                <p class="text-center text-base md:text-lg italic text-gray-300 mt-3 md:mt-4" data-parallax-speed="0.75">A single message can set the world ablaze.</p>
+            </div>
+
+            <div class="w-full relative" data-tilt-effect>
+                 <div class="parallax-image-container mb-4 md:mb-5" data-parallax-speed="0.5">
+                    <img src="images/Ara Arrest 05.png" alt="Ara American shocked at computer as authorities raid her location" class="parallax-image" onerror="this.onerror=null;this.src='https://placehold.co/600x400/ff0000/ffffff?text=Arrest+Scene+Missing';">
+                </div>
+                <div class="dossier-snippet" style="top: 6%; right: 4%; transform-origin: top right;">
+                    <strong>INCIDENT REPORT:</strong> [REDACTED] - Subject Apprehended
+                </div>
+                <p class="text-center text-lg md:text-xl font-semibold text-red-400 mt-3 md:mt-4" data-parallax-speed="0.7">But every action has a reaction.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: The Network: Lines Drawn -->
+    <section id="section3" class="parallax-section">
+         <div class="parallax-bg" style="background-image: url('https://placehold.co/1920x1080/080c1a/101528?text=Neural+Network+Pathways');" data-parallax-speed="0.3"></div>
+        <div class="content-block">
+            <h2 class="section-title text-center" data-parallax-speed="0.85">The Network: Lines Drawn</h2>
+            <p class="text-lg sm:text-xl mb-6 md:mb-8 text-gray-300 text-center leading-relaxed" data-parallax-speed="0.8">In Ara's world, lines are drawn. Allies, adversaries, assets. Every face has a story, every connection a consequence.</p>
+            
+            <div class="character-grid-container">
+                <canvas id="connection-canvas"></canvas>
+                <div class="character-grid">
+                    <div id="char-david" class="character-card" style="--card-index: 1;" data-parallax-speed="0.65" data-tilt-effect>
+                        <div class="character-image-wrapper"><img src="images/David Atherton 2.png" alt="David Atherton character art" onerror="this.onerror=null;this.src='https://placehold.co/180x220/ff0000/ffffff?text=David+Missing';"></div>
+                        <h3>David Atherton</h3>
+                    </div>
+                    <div id="char-harris" class="character-card" style="--card-index: 2;" data-parallax-speed="0.7" data-tilt-effect>
+                        <div class="character-image-wrapper"><img src="images/Harris Sultan 2.png" alt="Harris Sultan character art" onerror="this.onerror=null;this.src='https://placehold.co/180x220/ff0000/ffffff?text=Harris+Missing';"></div>
+                        <h3>Harris Sultan</h3>
+                    </div>
+                    <div id="char-udita" class="character-card" style="--card-index: 3;" data-parallax-speed="0.6" data-tilt-effect>
+                        <div class="character-image-wrapper"><img src="images/Udita Tyagi 2.png" alt="Udita Tyagi character art" onerror="this.onerror=null;this.src='https://placehold.co/180x220/ff0000/ffffff?text=Udita+Missing';"></div>
+                        <h3>Udita Tyagi</h3>
+                    </div>
+                    <div id="char-tommy" class="character-card" style="--card-index: 4;" data-parallax-speed="0.75" data-tilt-effect>
+                        <div class="character-image-wrapper"><img src="images/Tommy Robinson 2.png" alt="Tommy Robinson character art" onerror="this.onerror=null;this.src='https://placehold.co/180x220/ff0000/ffffff?text=Tommy+Missing';"></div>
+                        <h3>Tommy Robinson</h3>
+                    </div>
+                    <div id="char-apostate" class="character-card" style="--card-index: 5;" data-parallax-speed="0.68" data-tilt-effect>
+                        <div class="character-image-wrapper"><img src="images/Apostate Prophet 2.png" alt="Apostate Prophet character art" onerror="this.onerror=null;this.src='https://placehold.co/180x220/ff0000/ffffff?text=Apostate+Missing';"></div>
+                        <h3>Apostate Prophet</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: The Calm Before The Storm -->
+    <section id="section4" class="parallax-section text-gray-800"> 
+        <div class="parallax-bg" style="background-image: url('images/Tesco - 03.png'); background-position: center 40%;" data-parallax-speed="0.12"> 
+             <div class="surveillance-overlay">
+                <div class="cam-text cam-rec"></div>
+                <div class="cam-text cam-timestamp" id="camTimestamp"></div>
+            </div>
+        </div>
+        <div class="content-block items-center" data-tilt-effect>
+            <h2 class="section-title text-center" data-parallax-speed="0.85">The Calm Before The Storm</h2>
+            <p class="text-lg md:text-xl italic text-gray-700 text-center mt-5 md:mt-7 leading-relaxed" data-parallax-speed="0.75">A moment of deceptive calm. But the fuse was already lit, the world oblivious to the coming firestorm.</p>
+        </div>
+    </section>
+
+    <!-- Section 5: The Unseen Chapter -->
+    <section id="section5" class="parallax-section">
+         <div class="parallax-bg" style="background-image: url('https://placehold.co/1920x1080/080300/120803?text=Embers+and+Ash');" data-parallax-speed="0.35"></div>
+        <div class="content-block">
+            <div class="parallax-image-container my-6 md:my-8" data-parallax-speed="0.6">
+                <img src="images/Ara American 1.png" alt="Ara American character turnaround, resolute and defiant" class="parallax-image max-w-xs sm:max-w-sm md:max-w-md" onerror="this.onerror=null;this.src='https://placehold.co/400x400/ff0000/ffffff?text=Ara+Turnaround+Missing';">
+            </div>
+            <h2 class="section-title text-center" data-parallax-speed="0.85">The Unseen Chapter</h2>
+            <p class="text-lg sm:text-xl mb-5 md:mb-7 text-gray-300 text-center leading-relaxed" data-parallax-speed="0.8">Her actions have consequences. Her journey is just beginning. The web comic series delves deeper.</p>
+            
+            <div class="comic-panel-grid" data-parallax-speed="0.65">
+                <div class="comic-panel" data-tilt-effect>
+                    <div class="panel-blur-overlay" style="background-image: url('https://placehold.co/300x450/3a4558/c2c8f0?text=Comic+Tease+1');"></div>
+                    <p class="panel-text-teaser">PAGE 1: The city was a maze of whispers...</p>
+                </div>
+                <div class="comic-panel" data-tilt-effect>
+                    <div class="panel-blur-overlay" style="background-image: url('https://placehold.co/300x450/4a5568/d2d8e0?text=Comic+Tease+2');"></div>
+                    <p class="panel-text-teaser">PAGE 5: They were closer than she thought...</p>
+                </div>
+                <div class="comic-panel" data-tilt-effect>
+                    <div class="panel-blur-overlay" style="background-image: url('https://placehold.co/300x450/5a6578/c2c8d0?text=Comic+Tease+3');"></div>
+                    <p class="panel-text-teaser">PAGE 12: A desperate choice...</p>
+                </div>
+            </div>
+            
+            <div class="mt-6 md:mt-8 text-center" data-parallax-speed="0.7">
+                <h3 class="text-lg md:text-xl font-semibold text-amber-400 mb-3">What to Expect:</h3>
+                <ul class="list-disc list-inside inline-block text-left text-gray-300 space-y-1 text-sm md:text-base">
+                    <li>Gripping Global Chase & Espionage</li>
+                    <li>Unveiling Hidden Agendas & Deep State Secrets</li>
+                    <li>The Fight for Truth - No Matter the Cost</li>
+                    <li>Stunning Artwork & Dynamic Storytelling</li>
+                </ul>
+            </div>
+
+            <p class="text-xl sm:text-2xl md:text-3xl font-semibold my-5 md:my-7 text-amber-400 text-center" data-parallax-speed="0.75">THE STORY UNFOLDS SOON.</p>
+            
+            <div class="email-form mt-5 md:mt-7" data-parallax-speed="0.7">
+                <p class="mb-3 md:mb-4 text-base md:text-lg text-center">Be the first to know. Sign up for launch alerts & exclusive previews:</p>
+                <form class="flex flex-col sm:flex-row justify-center items-center gap-3 max-w-md mx-auto" onsubmit="handleFormSubmit(event)">
+                    <input type="email" id="emailInput" placeholder="your.email@example.com" class="w-full sm:w-auto flex-grow p-3 rounded-md border-gray-700 bg-gray-100 focus:ring-2 focus:ring-amber-500 outline-none text-gray-900" required>
+                    <button type="submit" class="w-full sm:w-auto">Notify Me</button>
+                </form>
+                <p id="formMessage" class="mt-3 text-sm text-center h-5"></p>
+            </div>
+
+            <div class="mt-8 md:mt-10" data-parallax-speed="0.65">
+                <p class="text-sm text-gray-400 text-center">Follow the journey:</p>
+                <div class="flex justify-center gap-x-5 sm:gap-x-7 mt-3"> 
+                     <a href="#" class="text-gray-400 hover:text-cyber-blue social-link" aria-label="X (Twitter)">
+                        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-cyber-pink social-link" aria-label="Instagram">
+                        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.85s-.012 3.584-.07 4.85c-.148 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07s-3.584-.012-4.85-.07c-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.85s.012-3.584.07-4.85c.149-3.227 1.664-4.771 4.919-4.919C8.416 2.175 8.796 2.163 12 2.163m0-2.163C8.74 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.74 0 12s.014 3.667.072 4.947c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.74 24 12 24s3.667-.014 4.947-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.687.073-4.947s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.667.014 15.26 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zm0 10.162a3.999 3.999 0 110-7.999 3.999 3.999 0 010 7.999zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-cyber-green social-link" aria-label="Facebook">
+                        <svg viewBox="0 0 24 24"><path d="M22.675 0h-21.35C.59 0 0 .59 0 1.325v21.35C0 23.41.59 24 1.325 24H12.82v-9.29H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116c.735 0 1.325-.59 1.325-1.325V1.325C24 .59 23.41 0 22.675 0z"/></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="text-center p-8 bg-black text-gray-500 text-sm">
+        <p>&copy; <span id="currentYear"></span> Ara American Comics. All rights reserved.</p>
+        <p class="mt-1">This is a fictional promotional website for a web comic series.</p>
+    </footer>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const preloader = document.querySelector('.preloader');
+        const mainTitleText = "WHERE IN THE WORLD IS ARA AMERICAN?";
+        const heroTitleElement = document.querySelector('.hero-title-main');
+        
+        setTimeout(() => {
+            preloader.classList.add('loaded');
+            document.body.classList.add('cursor-visible');
+        }, 2800); 
+
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorRing = document.querySelector('.cursor-ring');
+        let mouseX = 0, mouseY = 0; let ringX = 0, ringY = 0; let dotX = 0, dotY = 0;
+        document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+        function updateCursor() {
+            dotX += (mouseX - dotX - (cursorDot.offsetWidth / 2)) * 0.65; // Slightly faster dot
+            dotY += (mouseY - dotY - (cursorDot.offsetHeight / 2)) * 0.65;
+            ringX += (mouseX - ringX - (cursorRing.offsetWidth / 2)) * 0.28; // Slightly faster ring
+            ringY += (mouseY - ringY - (cursorRing.offsetHeight / 2)) * 0.28;
+            cursorDot.style.transform = `translate(${dotX}px, ${dotY}px)`;
+            cursorRing.style.transform = `translate(${ringX}px, ${ringY}px)`;
+            requestAnimationFrame(updateCursor);
+        }
+        requestAnimationFrame(updateCursor);
+
+        function animateTitle(titleElement, textContent) {
+            const words = textContent.split(' ');
+            titleElement.innerHTML = words.map(word => 
+                `<span class="word">${word.split('').map(char => `<span class="char">${char}</span>`).join('')}</span>`
+            ).join(' ');
+            
+            setTimeout(() => { 
+                Array.from(titleElement.querySelectorAll('.char')).forEach((char, index) => {
+                    setTimeout(() => {
+                        char.style.opacity = '1';
+                        char.style.transform = 'translateY(0) scale(1) rotateZ(0deg) rotateY(0deg)';
+                    }, index * 25 + 50); // Faster, more dynamic char animation
+                });
+            }, titleElement === heroTitleElement ? 2900 : 100); // Delay hero title until after preloader
+        }
+
+        if (heroTitleElement) {
+            animateTitle(heroTitleElement, mainTitleText);
+        }
+
+        const newsFlashes = ["ACTIVIST IGNITES CONTROVERSY", "GLOBAL MANHUNT BEGINS", "ARA A. VANISHES", "INTERNATIONAL ALERT ISSUED", "ANSWERS DEMANDED", "THE SPARK SPREADS", "WORLD WATCHES", "CODE NAME: ARA"];
+        const flashContainer = document.querySelector('.news-flash-container');
+        if (flashContainer) {
+            newsFlashes.forEach((text, index) => {
+                const flash = document.createElement('div');
+                flash.classList.add('news-flash');
+                flash.textContent = text.toUpperCase();
+                flash.style.top = `${Math.random() * 88 + 6}%`; 
+                flash.style.left = `${Math.random() * 88 + 6}%`;
+                flash.style.animationDelay = `${index * 1.1 + Math.random() * 0.6}s`;
+                flashContainer.appendChild(flash);
+            });
+        }
+
+        const parallaxElements = document.querySelectorAll('[data-parallax-speed]');
+        const fixedTitleContainer = document.querySelector('#section1 .fixed-title-container');
+        const elementsToObserve = document.querySelectorAll('.content-block, .character-card, .dossier-snippet, .comic-panel-grid, [data-tilt-effect]');
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    if (entry.target.classList.contains('content-block') || entry.target.classList.contains('parallax-section')) {
+                        const title = entry.target.querySelector('.section-title:not(.hero-title-main)');
+                        if (title && !title.classList.contains('letters-animated')) {
+                            animateTitle(title, title.textContent.trim());
+                            title.classList.add('letters-animated');
+                        }
+                    }
+                } else {
+                     // entry.target.classList.remove('visible'); 
+                }
+            });
+        }, { threshold: 0.2 }); 
+
+        elementsToObserve.forEach(el => observer.observe(el));
+        document.querySelectorAll('.parallax-section').forEach(el => observer.observe(el));
+
+        // 3D Tilt Effect for specified elements
+        document.querySelectorAll('[data-tilt-effect]').forEach(el => {
+            el.addEventListener('mousemove', (e) => {
+                const rect = el.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                const rotateX = (y / rect.height) * -12; // Max rotation 6 degrees
+                const rotateY = (x / rect.width) * 12;  // Max rotation 6 degrees
+                el.style.setProperty('--mouse-angle-x', `${rotateX}deg`);
+                el.style.setProperty('--mouse-angle-y', `${rotateY}deg`);
+                el.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.03)`; // Keep scale for hover consistency
+            });
+            el.addEventListener('mouseleave', () => {
+                el.style.removeProperty('--mouse-angle-x');
+                el.style.removeProperty('--mouse-angle-y');
+                el.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)'; // Reset
+            });
+        });
+
+
+        function updateParallax() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            parallaxElements.forEach(el => {
+                const speed = parseFloat(el.dataset.parallaxSpeed);
+                const rect = el.getBoundingClientRect();
+                if (rect.bottom > -window.innerHeight && rect.top < 2 * window.innerHeight) { 
+                    let offset = 0;
+                    if (el.classList.contains('parallax-bg')) {
+                         offset = scrollTop * speed * 0.65; 
+                         el.style.transform = `translate3d(0, ${offset}px, -200px) scale(1.2)`; // Keep Z transform
+                    } else if (el.closest('.fixed-title-container')) {
+                        const parentOffsetTop = fixedTitleContainer.parentElement.offsetTop || 0;
+                        const relativeScrollTop = scrollTop - parentOffsetTop;
+                        offset = relativeScrollTop * speed;
+                        el.style.transform = `translate3d(0, ${offset}px, 0)`;
+                    } else {
+                        const elementCenter = rect.top + rect.height / 2;
+                        const viewportCenter = window.innerHeight / 2;
+                        offset = (elementCenter - viewportCenter) * speed * -0.08; // Even more subtle content parallax
+                        el.style.transform = `translate3d(0, ${offset}px, 0)`;
+                    }
+                }
+            });
+            if (fixedTitleContainer) {
+                const section1 = document.getElementById('section1');
+                const section1Rect = section1.getBoundingClientRect();
+                if (section1Rect.bottom <= 0) {
+                    fixedTitleContainer.style.position = 'absolute';
+                    fixedTitleContainer.style.top = Math.max(0, (section1.offsetHeight - window.innerHeight)) + 'px';
+                } else {
+                    fixedTitleContainer.style.position = 'sticky';
+                    fixedTitleContainer.style.top = '0px';
+                }
+            }
+        }
+        window.addEventListener('scroll', () => window.requestAnimationFrame(updateParallax), { passive: true });
+        updateParallax(); 
+
+        const camTimestampEl = document.getElementById('camTimestamp');
+        const surveillanceOverlay = document.querySelector('#section4 .surveillance-overlay');
+        if (camTimestampEl) {
+            function updateCamTime() {
+                const now = new Date();
+                camTimestampEl.textContent = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+            setInterval(updateCamTime, 1000); updateCamTime();
+        }
+        if(surveillanceOverlay){
+            setInterval(() => {
+                surveillanceOverlay.classList.toggle('active', Math.random() > 0.92); 
+            }, 250);
+        }
+        
+        // Cyberpunk Rain Canvas
+        const rainCanvas = document.getElementById('cyberpunk-rain-canvas');
+        if (rainCanvas) {
+            const ctxRain = rainCanvas.getContext('2d');
+            rainCanvas.width = window.innerWidth;
+            rainCanvas.height = window.innerHeight;
+
+            const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+            const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
+            const nums = '0123456789';
+            const alphabet = katakana + latin + nums;
+            const fontSize = 12;
+            const columns = Math.ceil(rainCanvas.width / fontSize);
+            const rainDrops = Array(columns).fill(1);
+
+            function drawRain() {
+                ctxRain.fillStyle = 'rgba(3, 5, 8, 0.06)'; // Slightly darker, more transparent trail
+                ctxRain.fillRect(0, 0, rainCanvas.width, rainCanvas.height);
+                
+                ctxRain.fillStyle = 'var(--cyber-green)';
+                ctxRain.font = fontSize + 'px monospace';
+
+                for (let i = 0; i < rainDrops.length; i++) {
+                    const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                    ctxRain.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                    if (rainDrops[i] * fontSize > rainCanvas.height && Math.random() > 0.975) {
+                        rainDrops[i] = 0;
+                    }
+                    rainDrops[i]++;
+                }
+            }
+            let rainInterval = setInterval(drawRain, 45); // Adjusted speed
+            window.addEventListener('resize', () => {
+                rainCanvas.width = window.innerWidth;
+                rainCanvas.height = window.innerHeight;
+                // columns = Math.ceil(rainCanvas.width / fontSize); // This line was causing an error, columns is not reassigned globally
+                // rainDrops = Array(columns).fill(1);
+                // Re-initialize rain drops properly on resize
+                const newColumns = Math.ceil(rainCanvas.width / fontSize);
+                rainDrops.length = 0; // Clear old array
+                for(let i=0; i < newColumns; i++) rainDrops.push(1);
+
+            });
+        }
+
+
+        const canvasConnections = document.getElementById('connection-canvas');
+        if (canvasConnections) {
+            const ctx = canvasConnections.getContext('2d');
+            const cards = Array.from(document.querySelectorAll('.character-card'));
+            let animationFrameId;
+            let lines = []; 
+
+            function resizeCanvasConnections() {
+                const container = document.querySelector('.character-grid-container');
+                if (container) {
+                    canvasConnections.width = container.offsetWidth;
+                    canvasConnections.height = container.offsetHeight;
+                    initLinesConnections(); 
+                }
+            }
+
+            function initLinesConnections() {
+                lines = [];
+                if (cards.length < 2) return;
+                const cardPositions = cards.map(card => {
+                    const rect = card.getBoundingClientRect();
+                    const canvasRect = canvasConnections.getBoundingClientRect();
+                    return {
+                        x: rect.left - canvasRect.left + rect.width / 2,
+                        y: rect.top - canvasRect.top + rect.height / 2,
+                    };
+                });
+
+                for (let i = 0; i < cardPositions.length; i++) {
+                    for (let j = i + 1; j < cardPositions.length; j++) {
+                        if (Math.random() > 0.45) { 
+                             lines.push({
+                                startX: cardPositions[i].x, startY: cardPositions[i].y,
+                                endX: cardPositions[j].x, endY: cardPositions[j].y,
+                                currentLength: 0, maxLength: 1, opacity: 0,
+                                targetOpacity: Math.random() * 0.25 + 0.15, // More subtle lines
+                                speed: Math.random() * 0.01 + 0.015 // Varied animation speed
+                            });
+                        }
+                    }
+                }
+            }
+            
+            function drawConnections() {
+                ctx.clearRect(0, 0, canvasConnections.width, canvasConnections.height);
+                ctx.lineWidth = 1.2; 
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(var(--cyber-pink), 0.7)'; // Pinkish glow for connections
+
+                lines.forEach(line => {
+                    if (line.opacity < line.targetOpacity) line.opacity += line.speed / 2;
+                    if (line.currentLength < line.maxLength) line.currentLength += line.speed;
+                    line.currentLength = Math.min(line.currentLength, line.maxLength);
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(var(--cyber-pink), ${line.opacity})`;
+                    ctx.moveTo(line.startX, line.startY);
+                    ctx.lineTo(
+                        line.startX + (line.endX - line.startX) * line.currentLength,
+                        line.startY + (line.endY - line.startY) * line.currentLength
+                    );
+                    ctx.stroke();
+
+                    if (Math.random() < 0.0005 && line.opacity >= line.targetOpacity) { // Less frequent reset
+                        line.targetOpacity = Math.random() * 0.25 + 0.15; 
+                        line.opacity = 0; 
+                        line.currentLength = 0; 
+                    }
+                });
+            }
+            
+            function animateConnections() {
+                drawConnections();
+                animationFrameId = requestAnimationFrame(animateConnections);
+            }
+
+            const connectionObserver = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        resizeCanvasConnections(); 
+                        if (!animationFrameId) animateConnections();
+                        canvasConnections.classList.add('visible'); 
+                        window.addEventListener('resize', resizeCanvasConnections);
+                    } else {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                        canvasConnections.classList.remove('visible');
+                        window.removeEventListener('resize', resizeCanvasConnections);
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            const gridContainer = document.querySelector('.character-grid-container');
+            if (gridContainer) connectionObserver.observe(gridContainer);
+        }
+
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetElement = document.querySelector(this.getAttribute('href'));
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    });
+
+    function handleFormSubmit(event) {
+        event.preventDefault(); 
+        const emailInput = document.getElementById('emailInput');
+        const formMessage = document.getElementById('formMessage');
+        const button = event.target.querySelector('button');
+        button.textContent = 'TRANSMITTING...';
+        button.disabled = true;
+
+        setTimeout(() => { 
+            if (emailInput.value && emailInput.checkValidity()) {
+                formMessage.textContent = 'CONNECTION ESTABLISHED: ' + emailInput.value + ' is logged.';
+                formMessage.style.color = 'var(--cyber-green)'; 
+                emailInput.value = ''; 
+            } else {
+                formMessage.textContent = 'TRANSMISSION FAILED: Invalid email. Retry.';
+                formMessage.style.color = 'var(--red-400)';
+            }
+            button.textContent = 'Notify Me';
+            button.disabled = false;
+        }, 1900);
+    }
+    </script>
+</body>
+</html>
